@@ -33,7 +33,6 @@ function [varargout] = solver_RPCA_Lagrangian(Y,lambda_L,lambda_S,varargin)
 %     opts.BB_split whether to calculate stepslengths for S and L independently.
 %       Default is false, which is recommended.
 %   opts.quasiNewton  uses quasi-Newton-like Gauss-Seidel scheme.
-%                     Only available in "max" mode
 %     opts.quasiNewton_stepsize     stepsize length. Default is .8*(2/Lip)
 %     opts.quasinewton_SLS          whether to take S-L-S sequence (default is true)
 %                                   otherwise, takes a L-S Gauss-Seidel sequence

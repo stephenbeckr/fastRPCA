@@ -109,6 +109,7 @@ else
     end
     %[n1,n2] = size(AY); % comment out April 24 '14
 end
+normAY =    norm(AY(:));
 
 % Some problem sizes. Feel free to tweak. Mainly affect the defaults
 SMALL   = ( n1*n2 <= 50^2 );
@@ -127,7 +128,20 @@ restart     = setOpts('restart',-Inf);
 trueObj     = setOpts('trueObj',0);
 sumProject  = setOpts('sum', false );
 maxProject  = setOpts('max', false );
-QUASINEWTON = setOpts('quasiNewton', maxProject );
+
+if tau < 0
+	Lagrangian = true;
+	if sumProject || maxProject
+		error('in Lagrangian mode (when tau<0 significies lambda=|tau|), turn off sum/maxProject');
+	end
+	lambda = abs(tau);
+	tau = []; % help us track down bugs
+else
+	Lagrangian = false;
+	if (sumProject && maxProject) || (~sumProject && ~maxProject), error('must choose either "sum" or "max" type projection'); end
+end
+
+QUASINEWTON = setOpts('quasiNewton', maxProject || Lagrangian );
 FISTA       = setOpts('FISTA',~QUASINEWTON);
 BB          = setOpts('BB',~QUASINEWTON);
 BB_split    = setOpts('BB_split',false);
@@ -142,17 +156,7 @@ SVDnPower   = setOpts('SVDnPower', 1 + ~SVDwarmstart ); % number of power iterat
 SVDoffset   = setOpts('SVDoffset', 5 );
 SVDopts = struct('SVDstyle', SVDstyle,'warmstart',SVDwarmstart,...
     'nPower',SVDnPower,'offset',SVDoffset );
-if tau < 0
-	Lagrangian = true;
-	if sumProject || maxProject
-		error('in Lagrangian mode (when tau<0 significies lambda=|tau|), turn off sum/maxProject');
-	end
-	lambda = abs(tau);
-	tau = []; % help us track down bugs
-else
-	Lagrangian = false;
-	if (sumProject && maxProject) || (~sumProject && ~maxProject), error('must choose either "sum" or "max" type projection'); end
-end
+
 if QUASINEWTON 
     if sumProject
         error('Can not run quasi-Newton mode when in "sum" formulation. Please change to "max"');
@@ -286,7 +290,7 @@ for k = 1:maxIts
     end
     PRINT   = ~mod(k,printEvery) | BREAK | DO_RESTART;
     if PRINT
-        fprintf('Iter %4d, residual %.2e, objective %.2e', k, res, errHist(k,2) -trueObj);
+        fprintf('Iter %4d, rel. residual %.2e, objective %.2e', k, res/normAY, errHist(k,2) -trueObj);
     end
     if ~isempty(errFcn)
         err     = errFcn(L,S);
@@ -294,6 +298,9 @@ for k = 1:maxIts
         if PRINT, fprintf(', err %.2e', err ); end
     end
     if ~isempty(rnk) && PRINT, fprintf(', rank(L) %3d', rnk ); end
+    if PRINT
+        fprintf(', sparsity(S) %5.1f%%', 100*nnz(S)/numel(S) );
+    end
     if displayTime && PRINT
         tm = toc( timeRef ); timeRef = tic;
         fprintf(', time %.1f s', tm );
@@ -301,10 +308,15 @@ for k = 1:maxIts
     if DO_RESTART, fprintf(' [restarted FISTA]'); end
     if PRINT, fprintf('\n'); end
     if BREAK
+        fprintf('Reached stopping criteria (based on change in residual)\n');
         break;
     end
 end
-if BREAK, errHist = errHist(1:k,:); end
+if BREAK
+    errHist = errHist(1:k,:); 
+else
+    fprintf('Reached maximum number of allowed iterations\n');
+end
 
 end
 

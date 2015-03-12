@@ -67,8 +67,27 @@ if nargin >= 6 && ~isempty(seed)
 end
 if nargin < 3 || isempty( rEst )
     rEst =  ceil( r + log2(r) ); % for example...
-    rEst = min( rEst, n );
 end
+rEst = min( rEst, n );
+if r > n
+    warning('randomizedSVD:r','Warning: r > # rows, so truncating it');
+    r = n;
+end
+
+% March 2015, do full SVD sometimes
+if isnumeric( X )
+    m = size(X,1);
+    rEst = min( rEst, m );
+    r    = min( r, m );
+    
+    if r == min( m, n )
+        % do full SVD
+        [U,S,V] = svd(X,'econ');
+        return;
+    end
+end
+
+
 if nargin < 4 || isempty( nPower )
     nPower = 1;
 end

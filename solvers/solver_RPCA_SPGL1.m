@@ -1,5 +1,5 @@
-function [L,S,errHist] = solver_RPCA_SPGL1(AY,lambda_S, epsilon, A_cell, opts)
-% [L,S,errHist] = solver_RPCA_SPGL1(Y,lambda_S, epsilon, A_cell, opts)
+function [L,S,errHist,tau] = solver_RPCA_SPGL1(AY,lambda_S, epsilon, A_cell, opts)
+% [L,S,errHist,tau] = solver_RPCA_SPGL1(Y,lambda_S, epsilon, A_cell, opts)
 % Solves the problem
 %   minimize_{L,S} f(L,S)
 %   subject to 
