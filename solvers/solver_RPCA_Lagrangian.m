@@ -10,9 +10,10 @@ function [varargout] = solver_RPCA_Lagrangian(Y,lambda_L,lambda_S,varargin)
 %   minimize_{L,S} .5|| A(L + S) - Y ||_F^2 + lambda_L ||L||_* + lambda_S ||S||_1
 %   (here, Y usually represents A(Y) )
 %
-%   errHist(1,:) is a record of the residual
-%   errHist(2,:) is a record fo the full objective
-%   errHist(3,:) is the output of opts.errFcn if provided
+%   errHist(:,1) is a record of the residual
+%   errHist(:,2) is a record fo the full objective (.f*resid^2 + lambda_L,
+%      etc.)
+%   errHist(:,3) is the output of opts.errFcn if provided
 %
 % opts is a structure with options:
 %   opts.sum, opts.max  (as described above)
@@ -26,13 +27,14 @@ function [varargout] = solver_RPCA_Lagrangian(Y,lambda_L,lambda_S,varargin)
 %   opts.trueObj    if provided, this will be subtracted from errHist(2,:)
 %   opts.Lip        Lipschitz constant, i.e., 2*spectralNorm(A)^2
 %                       by default, assume 2 (e.g., good if A = P_Omega)
-%   opts.FISTA      whether to use FISTA or not. By default, true
+%   opts.FISTA      whether to use FISTA or not. By default, false
 %     opts.restart  how often to restart FISTA; set to -Inf to make it automatic
 %   opts.BB         whether to use the Barzilai-Borwein spectral steplength
 %     opts.BB_type  which BB stepsize to take. Default is 1, the larger step
 %     opts.BB_split whether to calculate stepslengths for S and L independently.
 %       Default is false, which is recommended.
-%   opts.quasiNewton  uses quasi-Newton-like Gauss-Seidel scheme.
+%   opts.quasiNewton  uses quasi-Newton-like Gauss-Seidel scheme. By
+%                       default, true
 %     opts.quasiNewton_stepsize     stepsize length. Default is .8*(2/Lip)
 %     opts.quasinewton_SLS          whether to take S-L-S sequence (default is true)
 %                                   otherwise, takes a L-S Gauss-Seidel sequence
