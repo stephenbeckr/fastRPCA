@@ -32,6 +32,8 @@ function [Y,L,S,params] = loadSyntheticProblem(varargin)
 %   .objective  This is a function of (L,S) and is the objective
 %               of the "Lagrangian" formulation
 %
+%   .L1L2   set to 0, 'rows', or 'sum' for using l1 or l1l2 block norms
+%
 % Stephen Becker, March 6 2014
 
 
@@ -68,11 +70,13 @@ problemString = varargin{1};
 fprintf('%s\n** Problem %s **\n\n',char('*'*ones(60,1)), problemString );
 fileName      = fullfile(baseDirectory,[problemString,'.mat']);
 if exist(fileName,'file')
-    fprintf('Loading reference solution from file\n');
+    fprintf('Loading reference solution from file %s\n', fileName);
     load(fileName); % should contain L, S and Y at least, and preferably lambdaL and lambdaS
 else
     [L,S,Y] = deal( [] );
 end
+% Default:
+L1L2  = 0;
 
 % For problems from the NSA software package:
 if length(problemString)>3 && strcmpi( problemString(1:3), 'nsa' )
@@ -212,6 +216,28 @@ else
             printEvery = 5; tol = 1e-10; maxIts = 100;
             
         
+        case 'escalator_small';
+            % added March 29 2015
+            load escalator_data_2015_small % has Y, mat, m, n, nFrames
+            m   = m*n; % 64 x 79, 200 frames
+            n   = nFrames;
+            lambdaL     = 3;
+            lambdaS     = 0.06;
+            printEvery  = 1;
+            tol         = 1e-9;
+            maxIts      = 100;
+            L0          = Y;
+            S0          = 0*Y;
+            
+            
+        case 'verySmall_l1'    
+            load verySmall_l1
+            % Used CVX to generate solution
+            
+        case 'verySmall_l1l2'
+            load verySmall_l1l2
+            % Used CVX to generate solution 
+            L1L2 = 'rows';
             
         otherwise
             error('bad problem name');
@@ -251,7 +277,13 @@ if isempty(L)
         opts    = struct('printEvery',printEvery,'FISTA',true,'tol',tol,'maxIts',maxIts);
         %[L,S,errHist] = solver_RPCA_Lagrangian_simple(Y,lambdaL,lambdaS,[],opts);
         opts.quasiNewton  = true; opts.FISTA=false; opts.BB = false;
-        otps.SVDstyle   = 1; % for highest accuracy
+        opts.SVDstyle   = 1; % for highest accuracy
+        if exist('L0','var')
+            opts.L0     = L0;
+        end
+        if exist('S0','var')
+            opts.S0     = S0;
+        end
         [L,S,errHist] = solver_RPCA_Lagrangian(Y,lambdaL,lambdaS,[],opts);
         toc
     end
@@ -262,11 +294,25 @@ end
 sigma   = svd(L,'econ');
 rk      = sum( sigma > 1e-8 );
 normL   = sum(sigma);
-normS   = norm(S(:),1);
 
 params = [];
-params.objective    = @(L,S) lambdaL*norm_nuke(L)+lambdaS*norm(S(:),1) + ...
-    .5*norm(vec(L+S-Y))^2;
+params.L1L2        = L1L2;
+if L1L2
+    if strcmpi(L1L2,'rows')
+        params.objective    = @(L,S) lambdaL*norm_nuke(L)+lambdaS*sum( sqrt( sum(S.^2,2) ) ) + ...
+            .5*norm(vec(L+S-Y))^2;
+        normS   = sum( sqrt( sum(S.^2,2) ) );
+    elseif strcmpi(L1L2,'cols')
+        params.objective    = @(L,S) lambdaL*norm_nuke(L)+lambdaS*sum( sqrt( sum(S.^2,1) ) ) + ...
+            .5*norm(vec(L+S-Y))^2;
+        normS   = sum( sqrt( sum(S.^2,1) ) );
+    else error('bad value for L1L2');
+    end
+else
+    params.objective    = @(L,S) lambdaL*norm_nuke(L)+lambdaS*norm(S(:),1) + ...
+        .5*norm(vec(L+S-Y))^2;
+    normS   = norm(S(:),1);
+end
 params.epsilon     = norm( L + S - Y, 'fro' );
 params.lambdaL     = lambdaL;
 params.lambdaS     = lambdaS;
@@ -281,7 +327,7 @@ params.tauMax      = max(normL,params.lambdaMax*normS );
 
 fprintf('\tSize %d x %d\n\tL has nuclear norm %.3f and rank %d of %d possible\n', ...
     m,n,normL, rk, length(sigma) );
-fprintf('\tS has l1 norm %.3f and %.2f%% of its elements are nonzero\n', ...
+fprintf('\tS has l1 (or l1l2) norm %.3f and %.2f%% of its elements are nonzero\n', ...
     normS, 100*sum( abs(S(:)) > 1e-8)/numel(S) );
 fprintf('\t||L+S-Y||/||Y|| is %.2e\n', params.epsilon/norm(Y,'fro' ) );
 
