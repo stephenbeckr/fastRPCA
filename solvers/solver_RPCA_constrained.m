@@ -63,11 +63,24 @@ function [L,S,errHist] = solver_RPCA_constrained(AY,lambda_S, tau, A_cell, opts)
 %       opts.SVDnPower  number of power iterations (default is 2 unless warm start)
 %       opts.SVDoffset  oversampling, e.g., "rho" in Tropp's paper. Default is 5
 %
-% Stephen Becker, March 6 2014. Edited March 14 2-14. stephen.beckr@gmail.com
+%   opts.L1L2      instead of using l1 penalty, e.g., norm(S(:),1), we can
+%       also use block norm penalties, such as (if opts.L1L2 = 'rows')
+%       the sum of the l2-norm of rows (i.e., l1-norm of rows),
+%       or if opts.L1L2='cols', the sum of the l2-norms of colimns.
+%       By default, or if opts.L1L2 = [] or false, then uses usual l1 norm.
+%       [Feature added April 17 2015]
+%
+%  Features that may be added later: [email developers if these are
+%    important to you]
+%       - Allow Huber loss function.
+%
+% Stephen Becker, March 6 2014. Edited March 14 2014, April 2015. 
+%   stephen.becker@colorad.edu
 % See also solver_RPCA_Lagrangian.m, solver_RPCA_SPGL1.m
 
 
 % todo: allow S >= 0 constraints, since this is easy
+% todo: allow Huber loss function
 
 error(nargchk(3,5,nargin,'struct'));
 if nargin < 5, opts = []; end
@@ -144,6 +157,8 @@ end
 QUASINEWTON = setOpts('quasiNewton', maxProject || Lagrangian );
 FISTA       = setOpts('FISTA',~QUASINEWTON);
 BB          = setOpts('BB',~QUASINEWTON);
+% Note: BB with FISTA is sometimesm not so good
+if BB && FISTA, warning('solver_RPCA:convergence','Convergence not guaranteed with FISTA if opts.BB=true'); end
 BB_split    = setOpts('BB_split',false);
 BB_type     = setOpts('BB_type',1); % 1 or 2
 stepsizeQN  = setOpts('quasiNewton_stepsize', .8*2/Lip );
@@ -167,13 +182,26 @@ if QUASINEWTON
     end
 end
 
+% April 17 2015
+L1L2        = setOpts('L1L2',0);
+if isempty(L1L2), L1L2=0; end
+if L1L2,
+    if ~isempty(strfind(lower(L1L2),'row')),  L1L2 = 'rows';
+    elseif ~isempty(strfind(lower(L1L2),'col')),  L1L2 = 'cols';
+        % so col, COL, cols, columns, etc. all acceptable
+    else
+        error('unrecognized option for L1L2: should be row or column or 0');
+    end
+end
+
 projNuclear(); % remove any persistent variables
 if maxProject
-    project = @(L,S,varargin) projectMax(tau,lambda_S,SVDopts, L,S);
+    project = @(L,S,varargin) projectMax(L1L2,tau,lambda_S,SVDopts, L,S);
 elseif sumProject
+    if any(L1L2), error('with opts.sum=true, need opts.L1L2=0'); end
     project = @(L,S,varargin) projectSum(tau,lambda_S,L,S);
 elseif Lagrangian
-    project = @(L,S,varargin) projectMax(lambda,lambda*lambda_S,SVDopts, L,S, varargin{:});
+    project = @(L,S,varargin) projectMax(L1L2,lambda,lambda*lambda_S,SVDopts, L,S, varargin{:});
 end
 
 L           = setOpts('L0',zeros(n1,n2) );
@@ -286,7 +314,16 @@ for k = 1:maxIts
     errHist(k,1) = res;
     errHist(k,2) = 1/2*(res^2); % + lambda_L*objL + lambda_S*objS;
     if Lagrangian
-        errHist(k,2) = errHist(k,2) + lambda*objL + lambda*lambda_S*norm(S(:),1);
+        errHist(k,2) = errHist(k,2) + lambda*objL;
+        if any(L1L2)
+            if strcmpi(L1L2,'rows')
+                errHist(k,2) = errHist(k,2) + lambda*lambda_S*sum( sqrt( sum(S.^2,2) ) );
+            else
+                errHist(k,2) = errHist(k,2) + lambda*lambda_S*sum( sqrt( sum(S.^2,1) ) );
+            end
+        else
+            errHist(k,2) = errHist(k,2) + lambda*lambda_S*norm(S(:),1);
+        end
     end
     if k > 1 && abs(diff(errHist(k-1:k,1)))/res < tol
         BREAK = true;
@@ -324,11 +361,11 @@ end
 end
 
 % subfunctions for projection
-function [L,S,rnk,nuclearNorm] = projectMax( tau, lambda_S,SVDopts, L, S , stepsize, stepsizeS)
- if nargin >= 6 && ~isempty(stepsize)
+function [L,S,rnk,nuclearNorm] = projectMax( L1L2, tau, lambda_S,SVDopts, L, S , stepsize, stepsizeS)
+ if nargin >= 7 && ~isempty(stepsize)
      % we compute proximity, not projection
      tauL 	= -abs( tau*stepsize );
-     if nargin < 7 || isempty( stepsizeS ), stepsizeS = stepsize; end
+     if nargin < 8 || isempty( stepsizeS ), stepsizeS = stepsize; end
      tauS 	= -abs( lambda_S*stepsizeS );
  else
      tauL 	= abs(tau);
@@ -346,13 +383,35 @@ function [L,S,rnk,nuclearNorm] = projectMax( tau, lambda_S,SVDopts, L, S , steps
      rnk = [];
      nuclearNorm = 0;
  end
+ 
  if ~isempty(S)
      if tauS > 0
-         projL1          = project_l1(tauS);
-         S               = projL1(      S);
+         if ~any(L1L2)
+             % use the l1 norm
+             projS  = project_l1(tauS);
+         elseif strcmpi(L1L2,'rows')
+             projS  = project_l1l2(tauS,true);
+         elseif strcmpi(L1L2,'cols')
+             projS  = project_l1l2(tauS,false);
+         else
+             error('bad value for L1L2: should be [], ''rows'' or ''cols'' ');
+         end
+         S  = projS( S );
      else
-         % simple prox
-         S = sign(S).*max(0, abs(S) - abs(tauS));
+         if ~any(L1L2)
+             % use the l1 norm
+             % simple prox
+             S = sign(S).*max(0, abs(S) - abs(tauS));
+         elseif strcmpi(L1L2,'rows')
+             projS  = prox_l1l2(abs(tauS));
+             S      = projS(S,1);
+         elseif strcmpi(L1L2,'cols')
+             projS  = prox_l1l2(abs(tauS));
+             S      = projS(S',1)';
+         else
+             error('bad value for L1L2: should be [], ''rows'' or ''cols'' ');
+         end
+         
      end
  end
 end
@@ -656,5 +715,120 @@ function op = project_l1( q , d)
         x   = myReshape(x);
     end
 
+
+end
+
+
+
+% Copied from TFOCS, April 17 2015
+function op = project_l1l2( q, rowNorms )
+%PROJ_L1L2    L1-L2 block norm: sum of L2 norms of rows.
+%    OP = PROJ_L1L2( q ) implements the constraint set
+%        {X | sum_{i=1:m} norm(X(i,:),2) <= 1 }
+%    where X is a m x n matrix.  If n = 1, this is equivalent
+%    to PROJ_L1. If m=1, this is equivalent to PROJ_L2
+%
+%    Q is optional; if omitted, Q=1 is assumed. But if Q is supplied,
+%    then it must be positive and real and a scalar.
+%
+%   OP = PROJ_L1L2( q, rowNorms )
+%     will either do the sum of the l2-norms of rows if rowNorms=true
+%       (the default), or the sum of the l2-norms of columns if
+%       rowNorms = false.
+%
+%   Known issues: doesn't yet work with complex-valued data.
+%       Should be easy to fix, so email developers if this is
+%       needed for your problem.
+%
+% Dual: prox_linfl2.m [not yet available]
+% See also prox_l1l2.m, proj_l1.m, proj_l2.m
+
+    if nargin == 0 || isempty(q),
+        q = 1;
+    elseif ~isnumeric( q ) || ~isreal( q ) || any(q <= 0) ||numel(q)>1,
+        error( 'Argument must be positive and a scalar.' );
+    end
+    
+    if nargin<2 || isempty(rowNorms)
+        rowNorms = true;
+    end
+    
+    if rowNorms
+        op = @(x,varargin)prox_f_rows(q,x);
+    else
+        op = @(x,varargin)prox_f_cols(q,x);
+    end
+
+    function X = prox_f_rows(tau,X) 
+        nrms    = sqrt( sum( X.^2, 2 ) );
+        % When we include a row of x, corresponding to row y of Y,
+        % its contribution is norm(y)-lambda
+        % So we have sum_{i=1}^m max(0, norm(y_0)-lambda)
+        % So, basically project nrms onto the l1 ball...
+        s      = sort( nrms, 'descend' );
+        cs     = cumsum(s);
+        
+        ndx    = find( cs - (1:numel(s))' .* [ s(2:end) ; 0 ] >= tau+2*eps(tau), 1 ); % For stability
+        
+        if ~isempty( ndx )
+            thresh = ( cs(ndx) - tau ) / ndx;
+            % Apply to relevant rows
+            d   = max( 0, 1-thresh./nrms );
+            m   = size(X,1);
+            X   = spdiags( d, 0, m, m )*X;
+        end
+    end
+
+    function X = prox_f_cols(tau,X) 
+        nrms    = sqrt( sum( X.^2, 1 ) ).';
+        s      = sort( nrms, 'descend' );
+        cs     = cumsum(s);
+        
+        ndx    = find( cs - (1:numel(s))' .* [ s(2:end) ; 0 ] >= tau+2*eps(tau), 1 ); % For stability
+        
+        if ~isempty( ndx )
+            thresh = ( cs(ndx) - tau ) / ndx;
+            d   = max( 0, 1-thresh./nrms );
+            n   = size(X,2);
+            X   = X*spdiags( d, 0, n,n );
+        end
+    end
+
+end % end projection_l1l2.m
+
+
+
+% Copied from TRFOCS April 17 2015
+function op = prox_l1l2( q )
+%PROX_L1L2    L1-L2 block norm: sum of L2 norms of rows.
+%    OP = PROX_L1L2( q ) implements the nonsmooth function
+%        OP(X) = q * sum_{i=1:m} norm(X(i,:),2)
+%    where X is a m x n matrix.  If n = 1, this is equivalent
+%    to PROX_L1
+%    Q is optional; if omitted, Q=1 is assumed. But if Q is supplied,
+%    then it must be positive and real.
+%    If Q is a vector, it must be m x 1, and in this case,
+%    the weighted norm OP(X) = sum_{i} Q(i)*norm(X(i,:),2)
+%    is calculated.
+%
+% Dual: proj_linfl2.m
+% See also proj_linfl2.m, proj_l1l2.m
+
+    if nargin == 0,
+        q = 1;
+    elseif ~isnumeric( q ) || ~isreal( q ) || any(q <= 0),
+        error( 'Argument must be positive.' );
+    end
+    op = @(x,t)prox_f(q,x,t);
+    
+    function x = prox_f(q,x,t)
+        if nargin < 3,
+            error( 'Not enough arguments.' );
+        end
+        v = sqrt( sum(x.^2,2) );
+        s = 1 - 1 ./ max( v ./ ( t .* q ), 1 );
+        m = length(s);
+        x = spdiags(s,0,m,m)*x;
+    end
 
 end

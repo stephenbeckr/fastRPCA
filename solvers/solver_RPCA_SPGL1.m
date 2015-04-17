@@ -58,6 +58,13 @@ function [L,S,errHist,tau] = solver_RPCA_SPGL1(AY,lambda_S, epsilon, A_cell, opt
 %       opts.SVDnPower  number of power iterations (default is 2 unless warm start)
 %       opts.SVDoffset  oversampling, e.g., "rho" in Tropp's paper. Default is 5
 %
+%   opts.L1L2      instead of using l1 penalty, e.g., norm(S(:),1), we can
+%       also use block norm penalties, such as (if opts.L1L2 = 'rows')
+%       the sum of the l2-norm of rows (i.e., l1-norm of rows),
+%       or if opts.L1L2='cols', the sum of the l2-norms of colimns.
+%       By default, or if opts.L1L2 = [] or false, then uses usual l1 norm.
+%       [Feature added April 17 2015]
+%
 % Stephen Becker, March 6 2014. Edited March 14 2-14. stephen.beckr@gmail.com
 % See also solver_RPCA_Lagrangian.m, solver_RPCA_constrained.m
 
@@ -92,6 +99,19 @@ end
 
 tauInitial      = setOpts('tau0', 1e1 );
 
+% April 17 2015
+L1L2        = setOpts('L1L2',0);
+if isempty(L1L2), L1L2=0; end
+if L1L2,
+    if ~isempty(strfind(lower(L1L2),'row')),  L1L2 = 'rows';
+    elseif ~isempty(strfind(lower(L1L2),'col')),  L1L2 = 'cols';
+        % so col, COL, cols, columns, etc. all acceptable
+    else
+        error('unrecognized option for L1L2: should be row or column or 0');
+    end
+end
+% Note: setOpts removes things, so add back. Easy to have bugs
+opts.L1L2   = L1L2;
 
 finalTol        = setOpts('tol',1e-6);
 sumProject      = setOpts('sum', false );
@@ -128,7 +148,16 @@ for nSteps = 1:SPGL1_maxIts
     if sumProject
         normG = max(norm(G), (1/lambda_S)*norm(G(:), inf));
     elseif maxProject
-        normG = norm(G) +  (1/lambda_S)*norm(G(:), inf);
+        if ~any(L1L2)
+            % Using l1 norm for S
+            normG = norm(G) +  (1/lambda_S)*norm(G(:), inf);
+        elseif strcmpi(L1L2,'rows')
+            % dual norm of l1 of l2-norm of rows'
+            normG = norm(G) + (1/lambda_S)*norm( sqrt(sum(G.^2,2)), inf );
+            
+        elseif strcmpi(L1L2,'cols')
+            normG = norm(G) + (1/lambda_S)*norm( sqrt(sum(G.^2,1)), inf );
+        end
     end
     
     % otherwise, take another Newton step

@@ -49,6 +49,13 @@ function [varargout] = solver_RPCA_Lagrangian(Y,lambda_L,lambda_S,varargin)
 %       opts.SVDnPower  number of power iterations (default is 2 unless warm start)
 %       opts.SVDoffset  oversampling, e.g., "rho" in Tropp's paper. Default is 5
 %
+%   opts.L1L2      instead of using l1 penalty, e.g., norm(S(:),1), we can
+%       also use block norm penalties, such as (if opts.L1L2 = 'rows')
+%       the sum of the l2-norm of rows (i.e., l1-norm of rows),
+%       or if opts.L1L2='cols', the sum of the l2-norms of colimns.
+%       By default, or if opts.L1L2 = [] or false, then uses usual l1 norm.
+%       [Feature added April 17 2015]
+%
 % Stephen Becker, March 6 2014
 % See also solver_RPCA_constrained.m
 
