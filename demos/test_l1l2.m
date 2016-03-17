@@ -2,7 +2,7 @@
 Friday April 17 2015, testing l1l2 block version
 This script only works if you have CVX installed to find
 the reference answers.
-  Stephen Becker, stephen.becker@colorad.edu
+  Stephen Becker, stephen.becker@colorado.edu
 %}
 
 
