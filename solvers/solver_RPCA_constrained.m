@@ -124,6 +124,8 @@ else
 end
 normAY =    norm(AY(:));
 
+vec = @(X) X(:);
+
 % Some problem sizes. Feel free to tweak. Mainly affect the defaults
 SMALL   = ( n1*n2 <= 50^2 );
 MEDIUM  = ( n1*n2 <= 200^2 ) && ~SMALL;
