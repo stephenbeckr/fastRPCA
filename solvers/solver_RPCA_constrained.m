@@ -5,7 +5,7 @@ function [L,S,errHist] = solver_RPCA_constrained(AY,lambda_S, tau, A_cell, opts)
 %   subject to 
 %   if opts.sum = true
 %       (1)  ||L||_* + lambda_S ||S||_1 <= tau
-%   if opts.max = true
+%   if opts.max = true 
 %       (2) max(  ||L||_* , lambda_S ||S||_1 ) <= tau
 %
 %   if opts.max and opts.sum are false and tau is a negative number, then

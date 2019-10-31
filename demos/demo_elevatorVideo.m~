@@ -35,18 +35,14 @@ opts        = struct('sum',false,'L0',L0,'S0',S0,'max',true,...
 
 %% Solve Lagrangian Version
 
-opts    = struct('sum',false,'max',false,'tol',1e-8,'printEvery',1);
-lambdaL = 115;
-lambdaS = 0.8;
+opts        = struct('sum',false,'L0',L0,'S0',S0,'max',false,'tol',1e-3,'printEvery',1);
 
-[L,S] = solver_RPCA_Lagrangian(X,lambdaL,lambdaS,[],opts);
+[L,S] = solver_RPCA_Lagrangian(X,lambdaL,epsilon,[],opts);
 
 
 %% Run the Split-SPCP Algorithm
-%  This method is particularly well-suited
-%  for the GPU.
 
-% Set options for L=BFGS
+% Set options for minFunc
 params.progTol = 1e-10;
 params.optTol  = 1e-10;
 params.MaxIter = 500;
@@ -54,10 +50,7 @@ params.store    = 1;
 
 % Set parameters for split_SPCP
 params.k   = 20; % rank bound on L
-params.gpu = 0;  % set to 1 to run on GPU
-params.lambdaL = 115;
-params.lambdaS = 0.8;
-params.useMex = 0;
+params.gpu = 0;
 
 [L,S] = solver_split_SPCP(X,params);
 %% show all together in movie format
