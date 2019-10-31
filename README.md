@@ -20,6 +20,8 @@ More info on robust PCA and stable principal component pursuit
 
 Citation
 ---------
+bibtex:
+
 ```
 @inproceedings{aravkin2014,
     author       = "Aravkin, A. and Becker, S. and Cevher, V. and Olsen, P.",
