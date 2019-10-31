@@ -36,15 +36,13 @@ end
 
 R = [vec(U0); vec(V0)];
 
-ObjFunc = @(x)BurMontRPCA(x,X,params,errFcn);
+ObjFunc = @(x)func_split_spcp(x,X,params,errFcn);
 
-BurMontRPCA();
-
-% [x,~,~,~] = minFunc(ObjFunc,R,params);
+func_split_spcp();
 
 [x,~,~] = lbfgs_gpu(ObjFunc,R,params);
 
-errHist=BurMontRPCA();
+errHist=func_split_spcp();
 if ~isempty( errHist )
     figure;
     semilogy( errHist );
@@ -52,7 +50,7 @@ end
 
 U = reshape(x(1:m*k),m,k);
 V = reshape(x(m*k+1:m*k+k*n),n,k);
-S = BurMontRPCA(x,X,params,'S');
+S = func_split_spcp(x,X,params,'S');
 S = reshape(S,m,n);
 
 L = U*V';
