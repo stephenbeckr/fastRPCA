@@ -53,10 +53,11 @@ params.MaxIter = 500;
 params.store    = 1;
 
 % Set parameters for split_SPCP
-params.k   = 20; % rank bound on L
+params.k   = 10; % rank bound on L
 params.gpu = 0;  % set to 1 to run on GPU
 params.lambdaL = 115;
 params.lambdaS = 0.8;
+
 
 [L,S] = solver_split_SPCP(X,params);
 %% show all together in movie format

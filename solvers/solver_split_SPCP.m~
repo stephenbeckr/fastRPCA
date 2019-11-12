@@ -7,10 +7,10 @@ function [L,S,errHist] = solver_split_SPCP(X,params)
 %
 %   phi(U,V) = min_S .5|| U*V' + S - Y ||_F^2 + lambda_S ||S||_1.
 %
-%   errHist(:,1) is a record of runtime
+%   errHist(:,1) is a r
 %   errHist(:,2) is a record of the full objective (.f*resid^2 + lambda_L,
 %      etc.)
-%   errHist(:,3) is the output of params.errFcn if provided
+%   errHist(:,3) is the output of opts.errFcn if provided
 %
 % params is a structure with optional fields
 %   errFcn     to compute objective or error (empty)
@@ -31,8 +31,8 @@ k      = setOpts(params,'k',10);
 U0     = setOpts(params,'U0',randn(m,k));
 V0     = setOpts(params,'V0',randn(n,k));
 gpu    = setOpts(params,'gpu',0);
-lambdaS = setOpts(params,'lambdaS',0.8); % default for demo_escalator
-lambdaL = setOpts(params,'lambdaL',115); % default for demo_escalator
+lambdaS = setOpts(params,'lambdaS',0.8); % default good for demo_escalator
+lambdaL = setOpts(params,'lambdaL',115); % default good for demo_escalator
 
 % check if we are on the GPU
 if strcmp(class(X), 'gpuArray')
@@ -75,6 +75,7 @@ S = reshape(S,m,n);
 L = U*V';
 
 end
+
 
 
 function out = setOpts(options, opt, default)

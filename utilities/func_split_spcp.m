@@ -5,9 +5,11 @@ function [f, df] = func_split_spcp(x,Y,params,errFcn)
 %
 % Compute function and gradient of split-SPCP objective
 %
-% 1/2 || U*V' + S^* - Y ||_F^2 + lambdaL ( ||U||_F^2 + ||V||_F^2 ),
+%   lambda_L/2 (||U||_F^2 + ||V||_F^2) + phi(U,V)
 %
-% where S^* = min_S  1/2 || U*V' + S - Y ||_F^2 + lambdaS ||S||_1.
+% where
+%
+%   phi(U,V) = min_S .5|| U*V' + S - Y ||_F^2 + lambda_S ||S||_1.
 
 persistent errHist
 

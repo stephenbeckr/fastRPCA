@@ -1,32 +1,30 @@
 function [x,f,exitflag] = lbfgs_gpu(funObj,x0,options)
-% [x,f,exitflag,output] = minFunc(funObj,x0,options,varargin)
+% [x,f,exitflag] = lbfgs_gpu(funObj,x0,options)
 %
 % Limited-memory BFGS with Wolfe line-search and GPU support.
+% Based on code from ''minFunc'' (Mark Schmidt, 2005)
 %
 % Options:
+%   GPU     - 0 is off-GPU, 1 is on-GPU
 %   maxIter - number of iterations
 %   store   - number of corrections to store in memory
 %             (more store lead to faster convergence).
-%   GPU     - 0 is off-GPU, 1 is on-GPU
 %   verbose - 0 turns off printing, 1 turns on printing
 %   c1      - Sufficient Decrease for Armijo condition (1e-4)
 %   c2      - Curvature Decrease for Wolfe conditions (0.9)
-%   progTol - Termination tolerance on objective decrease (1e-9)
+%   progTol - Termination tolerance on gradient size (1e-8)
+%   optTol  - Termination tolerance on objective decrease (1e-9)
 %
 % Inputs:
-%   funObj - is a function handle
+%   funObj - is a function handle (objective/gradient map)
 %   x0 - is a starting vector;
-%   options - is a struct containing parameters (defaults are used for non-existent or blank fields)
+%   options - is a struct containing parameters
 %
 % Outputs:
 %   x is the minimum value found
 %   f is the function value at the minimum found
 %   exitflag returns an exit condition
 %
-% Based on the code ''minFunc'':
-%
-% Author: Mark Schmidt (2005)
-% Web: http://www.di.ens.fr/~mschmidt/Software/minFunc.html
 
 if nargin < 3
     options = [];
@@ -37,10 +35,10 @@ maxIter = setOpts(options,'MaxIter',100);
 verbose = setOpts(options,'verbose',1);
 store   = setOpts(options,'store',100);
 gpu     = setOpts(options,'gpu',0);
-c1       = setOpts(options,'c1',1e-4);
-c2       = setOpts(options,'c2',0.9);
-progTol  = setOpts(options,'progTol',1e-9);
-optTol   = setOpts(options,'optTol',1e-8);
+c1      = setOpts(options,'c1',1e-4);
+c2      = setOpts(options,'c2',0.9);
+progTol = setOpts(options,'progTol',1e-9);
+optTol  = setOpts(options,'optTol',1e-8);
 
 % Initialize
 p = length(x0);
@@ -48,7 +46,6 @@ d = zeros(p,1);
 x = x0;
 t = 1;
 
-% If necessary, form numerical differentiation functions
 funEvalMultiplier = 1;
 
 % Evaluate Initial Point
@@ -69,10 +66,6 @@ if optCond <= optTol
     msg = 'Optimality Condition below optTol';
     if verbose
         fprintf('%s\n',msg);
-    end
-    if nargout > 3
-        output = struct('iterations',0,'funcCount',1,...
-            'algorithm',method,'firstorderopt',max(abs(g)),'message',msg,'trace',trace);
     end
     return;
 end

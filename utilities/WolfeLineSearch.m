@@ -3,6 +3,8 @@ function [t,f_new,g_new,funEvals] = WolfeLineSearch(...
 %
 % Bracketing Line Search to Satisfy Wolfe Conditions
 %
+% Based on code from ''minFunc'' (Mark Schmidt, 2005)
+%
 % Inputs:
 %   x: starting location
 %   t: initial step size
@@ -25,7 +27,7 @@ function [t,f_new,g_new,funEvals] = WolfeLineSearch(...
 %   f_new: function value at x+t*d
 %   g_new: gradient value at x+t*d
 %   funEvals: number function evaluations performed by line search
-%   H: Hessian at initial guess (only computed if requested
+%   H: Hessian at initial guess (only computed if requested)
 
 % Evaluate the Objective and Gradient at the Initial Step
 [f_new,g_new] = funObj(x+t*d);

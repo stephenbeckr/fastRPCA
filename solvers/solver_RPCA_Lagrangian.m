@@ -11,7 +11,7 @@ function [varargout] = solver_RPCA_Lagrangian(Y,lambda_L,lambda_S,varargin)
 %   (here, Y usually represents A(Y) )
 %
 %   errHist(:,1) is a record of the residual
-%   errHist(:,2) is a record fo the full objective (.f*resid^2 + lambda_L,
+%   errHist(:,2) is a record of the full objective (.f*resid^2 + lambda_L,
 %      etc.)
 %   errHist(:,3) is the output of opts.errFcn if provided
 %
