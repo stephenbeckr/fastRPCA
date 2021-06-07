@@ -37,11 +37,14 @@ Code and installation
 
 The code runs on MATLAB and does not require any mex files or installation. Just unzip the file and you are set. Run `setup_fastRPCA` to set the correct paths, and try the `demos` directory for sample usage of the code.
 
+[![View fastRPCA on File Exchange](https://www.mathworks.com/matlabcentral/images/matlab-file-exchange.svg)](https://www.mathworks.com/matlabcentral/fileexchange/52359-fastrpca)
+
 Authors
 --------------
-The code was developed by all the authors of the UAI paper, but primary development is due to Stephen Becker and Aleksandr (Sasha) Aravkin. Further contributions are welcome.
+The code was developed by all the authors of the UAI paper, but primary development is due to Stephen Becker and Aleksandr (Sasha) Aravkin (when both were at IBM Research). Further contributions are welcome.
+
 
 ## Contact us
-* [Sasha Aravkin](https://sites.google.com/site/saravkin), IBM Research
+* [Sasha Aravkin](https://uw-amo.github.io/saravkin/), University of Washington, Seattle
 * [Stephen Becker](amath.colorado.edu/faculty/becker/), University of Colorado Boulder
 
